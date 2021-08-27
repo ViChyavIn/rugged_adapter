@@ -355,23 +355,28 @@ module Gollum
         track_pathnames = true if current_path && options[:follow]
         limit = options[:limit].to_i
         offset = options[:offset].to_i
+        filter = options[:filter]
         skip_merges = options[:skip_merges]
         walker.sorting(Rugged::SORT_DATE)
 
           walker.each do |c|
             break if limit > 0 && commits.length >= limit
-              if skip_merges
-                # Skip merge commits
-                next if c.parents.length > 1
-              end
-              if !current_path || commit_touches_path?(c, current_path, options[:follow], walker)
-                # This is a commit we care about, unless we haven't skipped enough
-                # yet
-                skipped += 1
+            if !filter.nil?
+              # Skip if filter method returns false
+              next unless filter.call (c)
+            end
+            if skip_merges
+              # Skip merge commits
+              next if c.parents.length > 1
+            end
+            if !current_path || commit_touches_path?(c, current_path, options[:follow], walker)
+              # This is a commit we care about, unless we haven't skipped enough
+              # yet
+              skipped += 1
 
-                commits.push(Gollum::Git::Commit.new(c, track_pathnames ? renamed_path : nil)) if skipped > offset
-                renamed_path = current_path.nil? ? nil : current_path.dup
-              end
+              commits.push(Gollum::Git::Commit.new(c, track_pathnames ? renamed_path : nil)) if skipped > offset
+              renamed_path = current_path.nil? ? nil : current_path.dup
+            end
           end
         walker.reset
         commits
